@@ -1,4 +1,4 @@
-module gopkg.in/telebot.v3
+module github.com/graphomania/tg
 
 go 1.21
 
