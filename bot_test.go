@@ -2,8 +2,10 @@ package telebot
 
 import (
 	"errors"
+	"gopkg.in/telebot.v3/scheduler"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,6 +34,26 @@ func defaultSettings() Settings {
 
 func newTestBot() (*Bot, error) {
 	return NewBot(defaultSettings())
+}
+
+func TestFren(t *testing.T) {
+	bot, err := NewBot(Settings{
+		Token:   os.Getenv("TG_TEST_TOKEN"),
+		Verbose: true,
+		OnError: func(err error, context Context) {
+			log.Println(err)
+		},
+		Scheduler: scheduler.Default(),
+	})
+	require.NoError(t, err)
+
+	chat, err := strconv.ParseInt(os.Getenv("TG_TEST_CHAT"), 10, 64)
+	require.NoError(t, err)
+
+	for i := 0; i < 30; i++ {
+		_, err := bot.Send(&Chat{ID: chat}, strconv.Itoa(i))
+		require.NoError(t, err)
+	}
 }
 
 func TestNewBot(t *testing.T) {

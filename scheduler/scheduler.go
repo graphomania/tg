@@ -21,10 +21,22 @@ const (
 type RawFunc func() ([]byte, error)
 
 type Scheduler interface {
-	SyncFunc(count int64, chat int64, fn RawFunc) ([]byte, error)
+	SyncFunc(count int64, chat string, fn RawFunc) ([]byte, error)
 }
 
 var _ Scheduler = &scheduler{}
+
+var _ Scheduler = &nilScheduler{}
+
+func Nil() Scheduler {
+	return &nilScheduler{}
+}
+
+func (sch *nilScheduler) SyncFunc(count int64, chat string, fn RawFunc) ([]byte, error) {
+	return nil, nil
+}
+
+type nilScheduler struct{}
 
 func Conservative() Scheduler {
 	return Custom(ApiRequestQuota*4/5, ApiRequestQuotaPerChat*4/5, DefaultPollingRate*10)
@@ -39,7 +51,7 @@ func Custom(global int64, perChat int64, pollingRate time.Duration) Scheduler {
 		globalLimit:  global,
 		global:       0,
 		perChatLimit: perChat,
-		perChat:      map[int64]int64{},
+		perChat:      map[string]int64{},
 		sync:         &sync.RWMutex{},
 		events:       []event{},
 		pollingRate:  pollingRate,
@@ -51,14 +63,14 @@ type scheduler struct {
 	global      int64
 
 	perChatLimit int64
-	perChat      map[int64]int64
+	perChat      map[string]int64
 
 	sync        *sync.RWMutex
 	events      []event
 	pollingRate time.Duration
 }
 
-func (sch *scheduler) SyncFunc(count int64, chat int64, fn RawFunc) (ret []byte, err error) {
+func (sch *scheduler) SyncFunc(count int64, chat string, fn RawFunc) (ret []byte, err error) {
 	if sch == nil {
 		ret, err = fn()
 		return
@@ -89,7 +101,7 @@ func (sch *scheduler) SyncFunc(count int64, chat int64, fn RawFunc) (ret []byte,
 //	_, _ = sch.SyncFunc(count, chat, func() ([]byte, error) { return nil, nil })
 //}
 
-func (sch *scheduler) isReadyFor(count int64, chat int64) bool {
+func (sch *scheduler) isReadyFor(count int64, chat string) bool {
 	if sch == nil {
 		return true
 	}
@@ -107,7 +119,7 @@ func (sch *scheduler) isReadyFor(count int64, chat int64) bool {
 type event struct {
 	time  time.Time
 	count int64
-	chat  int64
+	chat  string
 }
 
 func (sch *scheduler) order() {
@@ -116,17 +128,17 @@ func (sch *scheduler) order() {
 	})
 }
 
-func (sch *scheduler) add(count int64, chat int64) {
+func (sch *scheduler) add(count int64, chat string) {
 	now := time.Now()
 
 	sch.global += count
 	sch.events = append(sch.events, event{
 		time:  now.Add(ApiRequestQuotaTimeout),
 		count: count,
-		chat:  0,
+		chat:  "",
 	})
 
-	if chat != 0 {
+	if chat != "" {
 		sch.perChat[chat] += count
 		sch.events = append(sch.events, event{
 			time:  now.Add(ApiRequestQuotaPerChatTimeout),
@@ -150,7 +162,7 @@ func (sch *scheduler) handleEvents(now time.Time) {
 		}
 
 		handled += 1
-		if event.chat == 0 {
+		if event.chat == "" {
 			sch.global -= event.count
 			continue
 		}

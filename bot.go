@@ -3,6 +3,7 @@ package telebot
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/telebot.v3/scheduler"
 	"io"
 	"log"
 	"net/http"
@@ -34,6 +35,9 @@ func NewBot(pref Settings) (*Bot, error) {
 	if pref.OnError == nil {
 		pref.OnError = defaultOnError
 	}
+	if pref.Scheduler == nil {
+		pref.Scheduler = scheduler.Nil()
+	}
 
 	bot := &Bot{
 		Token:   pref.Token,
@@ -49,6 +53,7 @@ func NewBot(pref Settings) (*Bot, error) {
 		verbose:     pref.Verbose,
 		parseMode:   pref.ParseMode,
 		client:      client,
+		scheduler:   pref.Scheduler,
 	}
 
 	if pref.Offline {
@@ -82,6 +87,7 @@ type Bot struct {
 	stop        chan chan struct{}
 	client      *http.Client
 	stopClient  chan struct{}
+	scheduler   scheduler.Scheduler
 }
 
 // Settings represents a utility struct for passing certain
@@ -119,6 +125,10 @@ type Settings struct {
 
 	// Offline allows to create a bot without network for testing purposes.
 	Offline bool
+
+	// API quota compliant scheduler, if nil => all requests would be sent right away.
+	// https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+	Scheduler scheduler.Scheduler
 }
 
 var defaultOnError = func(err error, c Context) {
@@ -395,7 +405,9 @@ func (b *Bot) Forward(to Recipient, msg Editable, opts ...interface{}) (*Message
 	sendOpts := extractOptions(opts)
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.Raw("forwardMessage", params)
+	data, err := b.scheduler.SyncFunc(1, to.Recipient(), func() ([]byte, error) {
+		return b.Raw("forwardMessage", params)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +433,9 @@ func (b *Bot) Copy(to Recipient, msg Editable, options ...interface{}) (*Message
 	sendOpts := extractOptions(options)
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.Raw("copyMessage", params)
+	data, err := b.scheduler.SyncFunc(1, to.Recipient(), func() ([]byte, error) {
+		return b.Raw("copyMessage", params)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -485,10 +499,16 @@ func (b *Bot) Edit(msg Editable, what interface{}, opts ...interface{}) (*Messag
 		params["message_id"] = msgID
 	}
 
+	id := ""
+	if chatId, ok := params["chat_id"]; ok {
+		id = chatId
+	}
+
 	sendOpts := extractOptions(opts)
 	b.embedSendOptions(params, sendOpts)
-
-	data, err := b.Raw(method, params)
+	data, err := b.scheduler.SyncFunc(1, id, func() ([]byte, error) {
+		return b.Raw(method, params)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +572,9 @@ func (b *Bot) EditCaption(msg Editable, caption string, opts ...interface{}) (*M
 	sendOpts := extractOptions(opts)
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.Raw("editMessageCaption", params)
+	data, err := b.scheduler.SyncFunc(1, params["chat_id"], func() ([]byte, error) {
+		return b.Raw("editMessageCaption", params)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +689,9 @@ func (b *Bot) Delete(msg Editable) error {
 		"message_id": msgID,
 	}
 
-	_, err := b.Raw("deleteMessage", params)
+	_, err := b.scheduler.SyncFunc(1, params["chat_id"], func() ([]byte, error) {
+		return b.Raw("deleteMessage", params)
+	})
 	return err
 }
 

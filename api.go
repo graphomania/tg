@@ -115,25 +115,32 @@ func (b *Bot) sendFiles(method string, files map[string]File, params map[string]
 
 	url := b.URL + "/bot" + b.Token + "/" + method
 
-	resp, err := b.client.Post(url, writer.FormDataContentType(), pipeReader)
-	if err != nil {
-		err = wrapError(err)
-		pipeReader.CloseWithError(err)
-		return nil, err
-	}
-	resp.Close = true
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusInternalServerError {
-		return nil, ErrInternal
+	id := ""
+	if chatId, ok := params["chat_id"]; ok {
+		id = chatId
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, wrapError(err)
-	}
+	return b.scheduler.SyncFunc(int64(len(files)), id, func() ([]byte, error) {
+		resp, err := b.client.Post(url, writer.FormDataContentType(), pipeReader)
+		if err != nil {
+			err = wrapError(err)
+			pipeReader.CloseWithError(err)
+			return nil, err
+		}
+		resp.Close = true
+		defer resp.Body.Close()
 
-	return data, extractOk(data)
+		if resp.StatusCode == http.StatusInternalServerError {
+			return nil, ErrInternal
+		}
+
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+
+		return data, extractOk(data)
+	})
 }
 
 func addFileToWriter(writer *multipart.Writer, filename, field string, file interface{}) error {
@@ -167,7 +174,9 @@ func (b *Bot) sendText(to Recipient, text string, opt *SendOptions) (*Message, e
 	}
 	b.embedSendOptions(params, opt)
 
-	data, err := b.Raw("sendMessage", params)
+	data, err := b.scheduler.SyncFunc(1, to.Recipient(), func() ([]byte, error) {
+		return b.Raw("sendMessage", params)
+	})
 	if err != nil {
 		return nil, err
 	}
