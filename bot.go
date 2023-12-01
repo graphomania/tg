@@ -3,7 +3,7 @@ package telebot
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/telebot.v3/scheduler"
+	"github.com/graphomania/tg/scheduler"
 	"io"
 	"log"
 	"net/http"

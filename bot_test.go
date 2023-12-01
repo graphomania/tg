@@ -2,7 +2,7 @@ package telebot
 
 import (
 	"errors"
-	"gopkg.in/telebot.v3/scheduler"
+	"github.com/graphomania/tg/scheduler"
 	"io"
 	"io/ioutil"
 	"log"
