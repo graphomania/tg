@@ -42,8 +42,7 @@ func (loc LocalCopy) Download(b *Bot, file *File, dst string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, reader)
-	if err != nil {
+	if _, err := io.Copy(out, reader); err != nil {
 		return wrapError(err)
 	}
 
@@ -67,7 +66,7 @@ func (loc LocalMove) Download(b *Bot, file *File, dst string) error {
 	}
 
 	if err := os.Rename(localPath, dst); err != nil {
-		return err
+		return wrapError(err)
 	}
 
 	file.FileLocal = dst
