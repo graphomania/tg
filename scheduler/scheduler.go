@@ -21,7 +21,7 @@ const (
 type RawFunc func() ([]byte, error)
 
 type Scheduler interface {
-	SyncFunc(count int64, chat string, fn RawFunc) ([]byte, error)
+	SyncFunc(count int, chat string, fn RawFunc) ([]byte, error)
 }
 
 var _ Scheduler = &scheduler{}
@@ -32,7 +32,7 @@ func Nil() Scheduler {
 	return &nilScheduler{}
 }
 
-func (sch *nilScheduler) SyncFunc(count int64, chat string, fn RawFunc) ([]byte, error) {
+func (sch *nilScheduler) SyncFunc(count int, chat string, fn RawFunc) ([]byte, error) {
 	return nil, nil
 }
 
@@ -46,12 +46,12 @@ func Default() Scheduler {
 	return Custom(ApiRequestQuota, ApiRequestQuotaPerChat, DefaultPollingRate)
 }
 
-func Custom(global int64, perChat int64, pollingRate time.Duration) Scheduler {
+func Custom(global int, perChat int, pollingRate time.Duration) Scheduler {
 	return &scheduler{
 		globalLimit:  global,
 		global:       0,
 		perChatLimit: perChat,
-		perChat:      map[string]int64{},
+		perChat:      map[string]int{},
 		sync:         &sync.RWMutex{},
 		events:       []event{},
 		pollingRate:  pollingRate,
@@ -59,18 +59,18 @@ func Custom(global int64, perChat int64, pollingRate time.Duration) Scheduler {
 }
 
 type scheduler struct {
-	globalLimit int64
-	global      int64
+	globalLimit int
+	global      int
 
-	perChatLimit int64
-	perChat      map[string]int64
+	perChatLimit int
+	perChat      map[string]int
 
 	sync        *sync.RWMutex
 	events      []event
 	pollingRate time.Duration
 }
 
-func (sch *scheduler) SyncFunc(count int64, chat string, fn RawFunc) (ret []byte, err error) {
+func (sch *scheduler) SyncFunc(count int, chat string, fn RawFunc) (ret []byte, err error) {
 	if sch == nil {
 		ret, err = fn()
 		return
@@ -97,11 +97,7 @@ func (sch *scheduler) SyncFunc(count int64, chat string, fn RawFunc) (ret []byte
 	return
 }
 
-//func (sch *scheduler) Sync(count int64, chat int64) {
-//	_, _ = sch.SyncFunc(count, chat, func() ([]byte, error) { return nil, nil })
-//}
-
-func (sch *scheduler) isReadyFor(count int64, chat string) bool {
+func (sch *scheduler) isReadyFor(count int, chat string) bool {
 	if sch == nil {
 		return true
 	}
@@ -118,7 +114,7 @@ func (sch *scheduler) isReadyFor(count int64, chat string) bool {
 
 type event struct {
 	time  time.Time
-	count int64
+	count int
 	chat  string
 }
 
@@ -128,7 +124,7 @@ func (sch *scheduler) order() {
 	})
 }
 
-func (sch *scheduler) add(count int64, chat string) {
+func (sch *scheduler) add(count int, chat string) {
 	now := time.Now()
 
 	sch.global += count

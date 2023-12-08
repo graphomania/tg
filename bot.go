@@ -346,7 +346,9 @@ func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, 
 	}
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.sendFiles("sendMediaGroup", files, params)
+	data, err := b.scheduler.SyncFunc(len(media), to.Recipient(), func() ([]byte, error) {
+		return b.sendFiles("sendMediaGroup", files, params)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -409,9 +411,7 @@ func (b *Bot) Forward(to Recipient, msg Editable, opts ...interface{}) (*Message
 	sendOpts := extractOptions(opts)
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.scheduler.SyncFunc(1, to.Recipient(), func() ([]byte, error) {
-		return b.Raw("forwardMessage", params)
-	})
+	data, err := b.Raw("forwardMessage", params)
 	if err != nil {
 		return nil, err
 	}
@@ -437,9 +437,7 @@ func (b *Bot) Copy(to Recipient, msg Editable, options ...interface{}) (*Message
 	sendOpts := extractOptions(options)
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.scheduler.SyncFunc(1, to.Recipient(), func() ([]byte, error) {
-		return b.Raw("copyMessage", params)
-	})
+	data, err := b.Raw("copyMessage", params)
 	if err != nil {
 		return nil, err
 	}
@@ -503,16 +501,10 @@ func (b *Bot) Edit(msg Editable, what interface{}, opts ...interface{}) (*Messag
 		params["message_id"] = msgID
 	}
 
-	id := ""
-	if chatId, ok := params["chat_id"]; ok {
-		id = chatId
-	}
-
 	sendOpts := extractOptions(opts)
 	b.embedSendOptions(params, sendOpts)
-	data, err := b.scheduler.SyncFunc(1, id, func() ([]byte, error) {
-		return b.Raw(method, params)
-	})
+
+	data, err := b.Raw(method, params)
 	if err != nil {
 		return nil, err
 	}
@@ -576,9 +568,7 @@ func (b *Bot) EditCaption(msg Editable, caption string, opts ...interface{}) (*M
 	sendOpts := extractOptions(opts)
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.scheduler.SyncFunc(1, params["chat_id"], func() ([]byte, error) {
-		return b.Raw("editMessageCaption", params)
-	})
+	data, err := b.Raw("editMessageCaption", params)
 	if err != nil {
 		return nil, err
 	}
@@ -693,9 +683,7 @@ func (b *Bot) Delete(msg Editable) error {
 		"message_id": msgID,
 	}
 
-	_, err := b.scheduler.SyncFunc(1, params["chat_id"], func() ([]byte, error) {
-		return b.Raw("deleteMessage", params)
-	})
+	_, err := b.Raw("deleteMessage", params)
 	return err
 }
 
