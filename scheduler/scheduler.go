@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const (
+var (
 	// ApiRequestQuota per second
 	ApiRequestQuota        = 30
 	ApiRequestQuotaTimeout = time.Second
@@ -15,7 +15,7 @@ const (
 	ApiRequestQuotaPerChat        = 20
 	ApiRequestQuotaPerChatTimeout = time.Minute
 
-	DefaultPollingRate = time.Millisecond
+	DefaultPollingRate = time.Millisecond * 10
 )
 
 type RawFunc func() ([]byte, error)
