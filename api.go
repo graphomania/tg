@@ -99,7 +99,7 @@ func (b *Bot) sendFiles(method string, files map[string]File, params map[string]
 	}
 
 	if len(rawFiles) == 0 {
-		return b.Raw(method, params)
+		return b.RawNoSync(method, params)
 	}
 
 	pipeReader, pipeWriter := io.Pipe()

@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -28,20 +29,23 @@ var _ Scheduler = &scheduler{}
 
 var _ Scheduler = &nilScheduler{}
 
+// Nil scheduler does nothing, performing all functions ASAP.
 func Nil() Scheduler {
 	return &nilScheduler{}
 }
 
 func (sch *nilScheduler) SyncFunc(count int, chat string, fn RawFunc) ([]byte, error) {
-	return nil, nil
+	return fn()
 }
 
 type nilScheduler struct{}
 
+// Conservative gives you a headroom of 25% compared to Default, just in case something goes wrong.
 func Conservative() Scheduler {
 	return Custom(ApiRequestQuota*4/5, ApiRequestQuotaPerChat*4/5, DefaultPollingRate*10)
 }
 
+// Default telegram API limits, 20/minute -- per chat quota, 30/second -- global quota.
 func Default() Scheduler {
 	return Custom(ApiRequestQuota, ApiRequestQuotaPerChat, DefaultPollingRate)
 }
@@ -98,10 +102,6 @@ func (sch *scheduler) SyncFunc(count int, chat string, fn RawFunc) (ret []byte, 
 }
 
 func (sch *scheduler) isReadyFor(count int, chat string) bool {
-	if sch == nil {
-		return true
-	}
-
 	if sch.globalLimit < sch.global+count {
 		return false
 	}
@@ -134,7 +134,7 @@ func (sch *scheduler) add(count int, chat string) {
 		chat:  "",
 	})
 
-	if chat != "" {
+	if !isPersonal(chat) {
 		sch.perChat[chat] += count
 		sch.events = append(sch.events, event{
 			time:  now.Add(ApiRequestQuotaPerChatTimeout),
@@ -147,7 +147,7 @@ func (sch *scheduler) add(count int, chat string) {
 }
 
 func (sch *scheduler) handleEvents(now time.Time) {
-	if sch == nil || len(sch.events) == 0 {
+	if len(sch.events) == 0 {
 		return
 	}
 
@@ -158,8 +158,8 @@ func (sch *scheduler) handleEvents(now time.Time) {
 		}
 
 		handled += 1
-		if event.chat == "" {
-			sch.global -= event.count
+		sch.global -= event.count
+		if isPersonal(event.chat) {
 			continue
 		}
 
@@ -169,4 +169,12 @@ func (sch *scheduler) handleEvents(now time.Time) {
 		}
 	}
 	sch.events = sch.events[handled:]
+}
+
+func isPersonal(chat string) bool {
+	id, err := strconv.ParseInt(chat, 10, 64)
+	if err != nil {
+		return false
+	}
+	return id >= 0
 }
