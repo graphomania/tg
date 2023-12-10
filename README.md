@@ -6,8 +6,8 @@ But I miss some features and I can't wait for the maintainers to add them. So I 
 List of additions:
 
 1. Scheduling for messages. Keeping in head quotas per chat and the global one.
-2. Handle albums.
-3. Support for large files via local telegram-bot-api. (INCOMING)
+2. Handling albums.
+3. Support for large files via local telegram-bot-api.
 
 ---
 

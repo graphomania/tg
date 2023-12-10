@@ -2,7 +2,6 @@ package telebot
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"sync"
 	"time"
@@ -39,7 +38,7 @@ func (g *Group) HandleAlbum(handler AlbumHandlerFunc, opts ...interface{}) {
 		endpoints = append(endpoints, OnMedia)
 	}
 
-	delay := time.Second / 4
+	delay := time.Second / 2
 	var albumHandler handleManager
 	if g.b.synchronous {
 		albumHandler = newSyncedManager(g.b, handler, delay)
@@ -81,43 +80,34 @@ func newSyncedManager(bot *Bot, fn AlbumHandlerFunc, delay time.Duration) *synce
 	}
 }
 
-func singleMessage(msg *Message) bool {
-	return msg.AlbumID == ""
-}
-
-func mediaGroupToId(msg *Message) string {
-	if !singleMessage(msg) {
-		return msg.AlbumID
-	}
-	return fmt.Sprintf("%d_%d", msg.Chat.ID, msg.ID)
-}
-
 func (manager *syncedManager) delayHandling(id string) {
-	manager.sync.Lock()
-	defer manager.sync.Unlock()
+	go func() {
+		time.Sleep(manager.delay)
 
-	if len(manager.ctx) == 0 {
-		return
-	}
+		manager.sync.Lock()
+		defer manager.sync.Unlock()
 
-	defer func() {
-		if r := recover(); r != nil {
-			manager.bot.onError(fmt.Errorf("syncedManager.delayHandling(id) panicked: %v", r), manager.ctx[0])
+		if len(manager.ctx) == 0 {
+			return
 		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				manager.bot.onError(fmt.Errorf("syncedManager.delayHandling(id) panicked: %v", r), manager.ctx[0])
+			}
+		}()
+
+		if id != manager.current {
+			return
+		}
+
+		if err := manager.fn(manager.ctx); err != nil {
+			manager.bot.onError(err, manager.ctx[0])
+		}
+
+		manager.current = ""
+		manager.ctx = nil
 	}()
-
-	time.Sleep(manager.delay)
-
-	if id != manager.current {
-		return
-	}
-
-	if err := manager.fn(manager.ctx); err != nil {
-		manager.bot.onError(err, manager.ctx[0])
-	}
-
-	manager.current = ""
-	manager.ctx = nil
 }
 
 func (manager *syncedManager) add(ctx Context) (err error) {
@@ -136,6 +126,8 @@ func (manager *syncedManager) add(ctx Context) (err error) {
 	}
 	manager.current = id
 	manager.ctx = []Context{ctx}
+
+	manager.delayHandling(id)
 
 	return
 }
@@ -171,7 +163,6 @@ func (handleScheduler *unsyncedManager) add(ctx Context) error {
 		unit.delays += 1
 		handleScheduler.unscheduled[id] = unit
 		go time.AfterFunc(handleScheduler.delay, func() { handleScheduler.handle(id) })
-		log.Printf("update\t%v\t%v", 0, id)
 		return nil
 	}
 
@@ -180,7 +171,6 @@ func (handleScheduler *unsyncedManager) add(ctx Context) error {
 		ctx:    []Context{ctx},
 	}
 	go time.AfterFunc(handleScheduler.delay, func() { handleScheduler.handle(id) })
-	log.Printf("add new\t%v\t%v", 0, id)
 
 	return nil
 }
@@ -195,7 +185,6 @@ func (handleScheduler *unsyncedManager) handle(id string) {
 	}
 	unit.delays -= 1
 	handleScheduler.unscheduled[id] = unit
-	log.Printf("dec\t%v\t%v", id, unit.delays)
 
 	if unit.delays == 0 {
 		defer func() {
@@ -214,4 +203,15 @@ func (handleScheduler *unsyncedManager) handle(id string) {
 			ctx.Bot().OnError(err, ctx)
 		}
 	}
+}
+
+func singleMessage(msg *Message) bool {
+	return msg.AlbumID == ""
+}
+
+func mediaGroupToId(msg *Message) string {
+	if !singleMessage(msg) {
+		return msg.AlbumID
+	}
+	return fmt.Sprintf("%d_%d", msg.Chat.ID, msg.ID)
 }
