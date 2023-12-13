@@ -60,3 +60,27 @@ func Recover(onError ...func(error)) tele.MiddlewareFunc {
 		}
 	}
 }
+
+// Personal returns a middleware that skips the update for non-personal chats.
+func Personal() tele.MiddlewareFunc {
+	return func(next tele.HandlerFunc) tele.HandlerFunc {
+		return func(ctx tele.Context) error {
+			if ctx.Chat() == nil || ctx.Sender() == nil || ctx.Chat().ID == ctx.Sender().ID {
+				return next(ctx)
+			}
+			return nil
+		}
+	}
+}
+
+// Public returns a middleware that skips the update for non-personal chats.
+func Public() tele.MiddlewareFunc {
+	return func(next tele.HandlerFunc) tele.HandlerFunc {
+		return func(ctx tele.Context) error {
+			if ctx.Chat() == nil || ctx.Sender() == nil || ctx.Chat().ID != ctx.Sender().ID {
+				return next(ctx)
+			}
+			return nil
+		}
+	}
+}
