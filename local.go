@@ -11,14 +11,19 @@ type Local interface {
 	Download(b *Bot, file *File, dst string) error
 }
 
-var _ Local = LocalCopy{}
-var _ Local = LocalMove{}
+var _ Local = localCopy{}
 
-// LocalCopy copies the file from local telegram-bot-api data directory to dst,
+var _ Local = localMove{}
+
+// localCopy copies the file from local telegram-bot-api data directory to dst,
 // providing the path to original copy to file.FileLocal.
-type LocalCopy struct{}
+type localCopy struct{}
 
-func (loc LocalCopy) Download(b *Bot, file *File, dst string) error {
+func LocalCopying() Local {
+	return &localCopy{}
+}
+
+func (loc localCopy) Download(b *Bot, file *File, dst string) error {
 	localPath := file.FilePath
 	if file.FilePath == "" {
 		f, err := b.FileByID(file.FileID)
@@ -50,11 +55,15 @@ func (loc LocalCopy) Download(b *Bot, file *File, dst string) error {
 	return nil
 }
 
-// LocalMove move the file from telegram-bot-api directory, re-uploading are not promised,
-// if you care about possible multiple file downloads, you should consider LocalCopy.
-type LocalMove struct{}
+// localMove move the file from telegram-bot-api directory, re-uploading are not promised,
+// if you care about possible multiple file downloads, you should consider localCopy.
+type localMove struct{}
 
-func (loc LocalMove) Download(b *Bot, file *File, dst string) error {
+func LocalMoving() Local {
+	return &localMove{}
+}
+
+func (loc localMove) Download(b *Bot, file *File, dst string) error {
 	localPath := file.FilePath
 	if file.FilePath == "" {
 		f, err := b.FileByID(file.FileID)
