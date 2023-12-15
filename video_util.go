@@ -31,7 +31,7 @@ const (
 	ffmpeg       = "ffmpeg"
 	ffprobe      = "ffprobe"
 	convert      = "convert"
-	temporaryDir = "testdata"
+	temporaryDir = ""
 )
 
 type SendVideoOpts struct {
