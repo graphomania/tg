@@ -2,6 +2,7 @@ package telebot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/graphomania/tg/scheduler"
 	"io"
@@ -294,6 +295,20 @@ func (b *Bot) Send(to Recipient, what interface{}, opts ...interface{}) (*Messag
 	default:
 		return nil, ErrUnsupportedWhat
 	}
+}
+
+// SendWithConnectionRetries is basically Bot.Send(...) but with retries
+// in case of connection failure/changing the network, which could be useful,
+// when uploading big files (hundreds of megabytes).
+func (b *Bot) SendWithConnectionRetries(to Recipient, what interface{}, retries int, opts ...interface{}) (*Message, error) {
+	for i := 0; i <= retries; i++ {
+		msg, err := b.Send(to, what, opts...)
+		if err != nil && strings.Contains(err.Error(), "connection reset by peer") {
+			continue
+		}
+		return msg, err
+	}
+	return nil, wrapError(errors.New("limit of retries has been reached"))
 }
 
 // SendAlbum sends multiple instances of media as a single message.
