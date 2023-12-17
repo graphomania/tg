@@ -3,6 +3,7 @@ package telebot
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 )
@@ -131,6 +132,14 @@ func (s *Sticker) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error)
 
 // Send delivers media through bot b to recipient.
 func (v *Video) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+	if v.ThumbnailBuilder != nil {
+		filename, err := v.ThumbnailBuilder(v)
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(filename)
+	}
+
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   v.Caption,

@@ -2,56 +2,58 @@ package telebot
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 )
 
-// SendLocalVideo has extra steps compared to Bot.Send(..., Video),
-// 1. Setting the preview (by a picture or a timestamp of the video ([0, 1]))
-// 2. Ensuring the video is being sent correctly
-// Unique option -- SendVideoOpts.
-func (b *Bot) SendLocalVideo(to Recipient, filename string, opts ...interface{}) (*Message, error) {
-	telebotOpts, sendVideoOpts := sendLocalVideoParseOpts(opts)
-	video, tmpFile, err := VideoWithPreviewVerbose(sendVideoOpts.Convert, sendVideoOpts.Ffmpeg, sendVideoOpts.Ffprobe, filename, sendVideoOpts.Preview)
-	defer os.Remove(tmpFile)
-	if err != nil {
-		return nil, wrapError(err)
-	}
-	video.Caption = sendVideoOpts.Caption
-	video.FileName = sendVideoOpts.Filename
-	return b.SendWithConnectionRetries(to, video, sendVideoOpts.Retries, telebotOpts...)
-}
-
 const (
-	ffmpeg       = "ffmpeg"
-	ffprobe      = "ffprobe"
-	convert      = "convert"
-	temporaryDir = ""
+	ffmpeg  = "ffmpeg"
+	ffprobe = "ffprobe"
+	convert = "convert"
 )
 
-type SendVideoOpts struct {
-	// string -- path to file, Photo -- Telegram Cloud picture, float64 -- [0, 1] part of video
-	Preview interface{}
-	// (Retries < 0)  --> (no retries)
-	// (Retries == 0) --> (Default (3) retries)
-	Retries int
+// ThumbnailAt creates a thumbnail at a position of 2 types:
+// 1. float64 -- from [0, 1], relative position in Video
+// 2. string  -- position in ffmpeg format, i.e. 00:05:12.99
+func ThumbnailAt(position interface{}, opts ...interface{}) ThumbnailBuilder {
+	options := &ThumbnailOptions{}
+	if len(opts) != 0 {
+		options = opts[0].(*ThumbnailOptions)
+	}
+	options = options.Defaults()
 
-	Caption  string
-	Filename string
+	return func(video *Video) (filename string, err error) {
+		if video == nil || video.FileLocal == "" {
+			return "", nil
+		}
 
+		metadata, err := getFileMetadata(options.Ffprobe, video.FileLocal)
+		if err != nil {
+			return "", err
+		}
+
+		videoDuration, err := strconv.ParseFloat(metadata.Format.Duration, 10)
+		if err != nil {
+			return "", err
+		}
+
+		return makePreviewAt(options.TmpDir, options.Convert, options.Ffmpeg, video.FileLocal, calcThumbnailPosition(videoDuration, position))
+	}
+}
+
+type ThumbnailOptions struct {
 	Convert string
 	Ffmpeg  string
 	Ffprobe string
+	TmpDir  string
 }
 
-func (opts *SendVideoOpts) Defaults() *SendVideoOpts {
+func (opts *ThumbnailOptions) Defaults() *ThumbnailOptions {
 	if opts == nil {
-		opts = &SendVideoOpts{}
+		opts = &ThumbnailOptions{}
 	}
 	if opts.Convert == "" {
 		opts.Convert = convert
@@ -62,67 +64,7 @@ func (opts *SendVideoOpts) Defaults() *SendVideoOpts {
 	if opts.Ffprobe == "" {
 		opts.Ffprobe = ffprobe
 	}
-	if opts.Preview == nil {
-		opts.Preview = 0.25
-	}
-	if opts.Retries == 0 {
-		opts.Retries = 3
-	} else if opts.Retries < 0 {
-		opts.Retries = 0
-	}
 	return opts
-}
-
-func VideoWithPreview(filename string, preview interface{}, tgFilename ...string) (vid *Video, tmpfile string, err error) {
-	return VideoWithPreviewVerbose(convert, ffmpeg, ffprobe, filename, preview, tgFilename...)
-}
-
-func VideoWithPreviewVerbose(convert, ffmpeg, ffprobe, filename string, preview interface{}, tgFilename ...string) (*Video, string, error) {
-	metadata, err := getFileMetadata(ffprobe, filename)
-	if err != nil {
-		return nil, "", err
-	}
-	videoDuration, err := strconv.ParseFloat(metadata.Format.Duration, 10)
-	if err != nil {
-		return nil, "", err
-	}
-
-	var previewPicture *Photo
-	var extraFile string
-	switch prev := preview.(type) {
-	case *Photo:
-		previewPicture = prev
-
-	case string:
-		previewPic, err := formatPreview(convert, filename)
-		if err != nil {
-			return nil, previewPic, err
-		}
-		extraFile = previewPic
-		previewPicture = &Photo{File: FromDisk(previewPic)}
-
-	case float64:
-		previewPath, err := makePreviewAt(convert, ffmpeg, filename, videoDuration*prev)
-		if err != nil {
-			return nil, previewPath, err
-		}
-		extraFile = previewPath
-		previewPicture = &Photo{File: FromDisk(previewPath)}
-
-	default:
-		return nil, "", errors.New("unknown argument type: <preview>")
-	}
-
-	return &Video{
-		File:      FromDisk(filename),
-		Width:     metadata.Streams[0].Width,
-		Height:    metadata.Streams[0].Height,
-		Duration:  int(videoDuration),
-		Thumbnail: previewPicture,
-		Streaming: true,
-		MIME:      "video/mp4",
-		FileName:  strings.Join(tgFilename, ""),
-	}, extraFile, nil
 }
 
 type fileMetadata struct {
@@ -167,8 +109,8 @@ func formatDuration(d time.Duration) string {
 		trailingZeros(d/time.Second%60, 2), trailingZeros(d/time.Millisecond%1000, 3))
 }
 
-func formatPreview(convert string, filename string) (string, error) {
-	tempFile, err := os.CreateTemp(temporaryDir, "*_graphomania_tg_small_preview.jpg")
+func formatPreview(tmpDir string, convert string, filename string) (string, error) {
+	tempFile, err := os.CreateTemp(tmpDir, "*_graphomania_tg_small_preview.jpg")
 	if err != nil {
 		return "", err
 	}
@@ -182,8 +124,8 @@ func formatPreview(convert string, filename string) (string, error) {
 	return tempFile.Name(), nil
 }
 
-func makePreviewAt(convert string, ffmpeg string, filename string, at float64) (string, error) {
-	tmpBig, err := os.CreateTemp(temporaryDir, "*_graphomania_tg_big_preview.jpg")
+func makePreviewAt(tmpDir string, convert string, ffmpeg string, filename string, at string) (string, error) {
+	tmpBig, err := os.CreateTemp(tmpDir, "*_graphomania_tg_big_preview.jpg")
 	if err != nil {
 		return "", err
 	}
@@ -192,27 +134,21 @@ func makePreviewAt(convert string, ffmpeg string, filename string, at float64) (
 		_ = os.Remove(tmpBig.Name())
 	}()
 
-	output, err := exec.Command(ffmpeg, "-y", "-i", filename,
-		"-ss", formatDuration(time.Duration(at)), "-vframes", "1", tmpBig.Name()).CombinedOutput()
+	output, err := exec.Command(ffmpeg, "-y", "-i", filename, "-ss", at, "-vframes", "1", tmpBig.Name()).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%v\n%s", err, string(output))
 	}
 
-	return formatPreview(convert, tmpBig.Name())
+	return formatPreview(tmpDir, convert, tmpBig.Name())
 }
 
-func sendLocalVideoParseOpts(opts []interface{}) ([]interface{}, *SendVideoOpts) {
-	sendVideoOpts := &SendVideoOpts{}
-	telebotOpts := make([]interface{}, 0)
-	for _, opt := range opts {
-		switch val := opt.(type) {
-		case *SendVideoOpts:
-			sendVideoOpts = val
-
-		default:
-			telebotOpts = append(telebotOpts, opt)
-		}
+func calcThumbnailPosition(duration float64, position interface{}) string {
+	ret := ""
+	switch pos := position.(type) {
+	case string:
+		ret = pos
+	case float64:
+		ret = formatDuration(time.Duration(duration * pos))
 	}
-
-	return telebotOpts, sendVideoOpts.Defaults()
+	return ret
 }

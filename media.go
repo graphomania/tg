@@ -169,6 +169,8 @@ func (d *Document) InputMedia() InputMedia {
 	}
 }
 
+type ThumbnailBuilder func(video *Video) (filename string, err error)
+
 // Video object represents a video file.
 type Video struct {
 	File
@@ -183,6 +185,11 @@ type Video struct {
 	Streaming bool   `json:"supports_streaming,omitempty"`
 	MIME      string `json:"mime_type,omitempty"`
 	FileName  string `json:"file_name,omitempty"`
+
+	// PreviewBuilder ensures a good preview for your videos,
+	// if nothing is passed, depends on Telegram's preview generation.
+	// The builder is called on the Video send. The returned file is being deleted afterward.
+	ThumbnailBuilder ThumbnailBuilder `json:"-"`
 }
 
 func (v *Video) MediaType() string {
