@@ -169,7 +169,9 @@ func (d *Document) InputMedia() InputMedia {
 	}
 }
 
-type ThumbnailBuilder func(video *Video) (filename string, err error)
+// VideoModifier a simple modifier function, called when Video is sent.
+// Returns temporary files, which shall be removed after a Video sent
+type VideoModifier func(video *Video) (temporaries []string, err error)
 
 // Video object represents a video file.
 type Video struct {
@@ -186,10 +188,27 @@ type Video struct {
 	MIME      string `json:"mime_type,omitempty"`
 	FileName  string `json:"file_name,omitempty"`
 
-	// PreviewBuilder ensures a good preview for your videos,
-	// if nothing is passed, depends on Telegram's preview generation.
-	// The builder is called on the Video send. The returned file is being deleted afterward.
-	ThumbnailBuilder ThumbnailBuilder `json:"-"`
+	// Modifiers are simple helper functions to modify videos before uploading.
+	Modifiers []VideoModifier `json:"-"`
+}
+
+func (v *Video) ToAnimation() *Animation {
+	return &Animation{
+		File:      v.File,
+		Width:     v.Width,
+		Height:    v.Height,
+		Duration:  v.Duration,
+		Caption:   v.Caption,
+		Thumbnail: v.Thumbnail,
+		MIME:      v.MIME,
+		FileName:  v.FileName,
+		Modifiers: v.Modifiers,
+	}
+}
+
+func (v *Video) With(mods ...VideoModifier) *Video {
+	v.Modifiers = append(v.Modifiers, mods...)
+	return v
 }
 
 func (v *Video) MediaType() string {
@@ -225,6 +244,24 @@ type Animation struct {
 	Thumbnail *Photo `json:"thumb,omitempty"`
 	MIME      string `json:"mime_type,omitempty"`
 	FileName  string `json:"file_name,omitempty"`
+
+	// Modifiers are the same as Video.Modifiers.
+	Modifiers []VideoModifier `json:"-"`
+}
+
+func (a *Animation) ToVideo(streaming bool) *Video {
+	return &Video{
+		File:      a.File,
+		Width:     a.Width,
+		Height:    a.Height,
+		Duration:  a.Duration,
+		Caption:   a.Caption,
+		Thumbnail: a.Thumbnail,
+		Streaming: streaming,
+		MIME:      a.MIME,
+		FileName:  a.FileName,
+		Modifiers: a.Modifiers,
+	}
 }
 
 func (a *Animation) MediaType() string {

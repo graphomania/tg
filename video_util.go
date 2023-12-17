@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,42 +20,109 @@ const (
 // ThumbnailAt creates a thumbnail at a position of 2 types:
 // 1. float64 -- from [0, 1], relative position in Video
 // 2. string  -- position in ffmpeg format, i.e. 00:05:12.99
-func ThumbnailAt(position interface{}, opts ...interface{}) ThumbnailBuilder {
-	options := &ThumbnailOptions{}
-	if len(opts) != 0 {
-		options = opts[0].(*ThumbnailOptions)
-	}
-	options = options.Defaults()
+func ThumbnailAt(position interface{}, opts ...interface{}) VideoModifier {
+	options := parseVideoModOptions(opts...)
 
-	return func(video *Video) (filename string, err error) {
+	return func(video *Video) (filename []string, err error) {
 		if video == nil || video.FileLocal == "" {
-			return "", nil
+			return nil, nil
 		}
 
 		metadata, err := getFileMetadata(options.Ffprobe, video.FileLocal)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		videoDuration, err := strconv.ParseFloat(metadata.Format.Duration, 10)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return makePreviewAt(options.TmpDir, options.Convert, options.Ffmpeg, video.FileLocal, calcThumbnailPosition(videoDuration, position))
+		thumbnail, err := makeThumbnailAt(options.TmpDir, options.Convert, options.Ffmpeg, video.FileLocal, calcThumbnailPosition(videoDuration, position))
+		video.Thumbnail = &Photo{File: FromDisk(thumbnail)}
+		return []string{thumbnail}, err
 	}
 }
 
-type ThumbnailOptions struct {
+// MuteVideo by creating a local muted copy.
+// https://superuser.com/questions/268985/remove-audio-from-video-file-with-ffmpeg
+// ffmpeg -i $input_file -vcodec copy -an $output_file
+func MuteVideo(opts ...interface{}) VideoModifier {
+	options := parseVideoModOptions(opts...)
+
+	return func(video *Video) (temporaries []string, err error) {
+		if video == nil || video.FileLocal == "" {
+			return nil, nil
+		}
+
+		tmpFile, err := os.CreateTemp(options.TmpDir, fmt.Sprintf("*_graphomania_tg%s", filetype(video.FileLocal)))
+		if err != nil {
+			return nil, err
+		}
+
+		output, err := exec.Command(options.Ffmpeg, "-y", "-i", video.FileLocal, "-vcodec", "copy", "-an", tmpFile.Name()).
+			CombinedOutput()
+		if err != nil {
+			return nil, wrapExecError(err, output)
+		}
+
+		video.FileLocal = tmpFile.Name()
+
+		return []string{tmpFile.Name()}, nil
+	}
+}
+
+// ConvertH264WithDimensions by creating a local muted copy.
+func ConvertH264WithDimensions(width int, height int, opts ...interface{}) VideoModifier {
+	options := parseVideoModOptions(opts...)
+
+	// https://stackoverflow.com/questions/54063902/resize-videos-with-ffmpeg-keep-aspect-ratio
+	scaleRule := fmt.Sprintf("scale=if(gte(iw\\,ih)\\,min(%d\\,iw)\\,-2):if(lt(iw\\,ih)\\,min(%d\\,ih)\\,-2)", width, height)
+
+	return func(video *Video) (temporaries []string, err error) {
+		if video == nil || video.FileLocal == "" {
+			return nil, nil
+		}
+
+		tmpFile, err := os.CreateTemp(options.TmpDir, fmt.Sprintf("*_graphomania_tg%s", filetype(video.FileLocal)))
+		if err != nil {
+			return nil, err
+		}
+
+		output, err := exec.Command(options.Ffmpeg,
+			"-y", "-i", video.FileLocal,
+			"-vf", scaleRule,
+			"-vcodec", "libx264",
+			"-acodec", "aac",
+			tmpFile.Name()).
+			CombinedOutput()
+		if err != nil {
+			return []string{tmpFile.Name()}, wrapExecError(err, output)
+		}
+
+		video.FileLocal = tmpFile.Name()
+		metadata, err := getFileMetadata(options.Ffprobe, video.FileLocal)
+		if err != nil {
+			return []string{tmpFile.Name()}, wrapExecError(err, output)
+		}
+
+		video.Width = metadata.Streams[0].Width
+		video.Height = metadata.Streams[0].Height
+
+		return []string{tmpFile.Name()}, nil
+	}
+}
+
+type VideoModOptions struct {
 	Convert string
 	Ffmpeg  string
 	Ffprobe string
 	TmpDir  string
 }
 
-func (opts *ThumbnailOptions) Defaults() *ThumbnailOptions {
+func (opts *VideoModOptions) Defaults() *VideoModOptions {
 	if opts == nil {
-		opts = &ThumbnailOptions{}
+		opts = &VideoModOptions{}
 	}
 	if opts.Convert == "" {
 		opts.Convert = convert
@@ -124,7 +193,7 @@ func formatPreview(tmpDir string, convert string, filename string) (string, erro
 	return tempFile.Name(), nil
 }
 
-func makePreviewAt(tmpDir string, convert string, ffmpeg string, filename string, at string) (string, error) {
+func makeThumbnailAt(tmpDir string, convert string, ffmpeg string, filename string, at string) (string, error) {
 	tmpBig, err := os.CreateTemp(tmpDir, "*_graphomania_tg_big_preview.jpg")
 	if err != nil {
 		return "", err
@@ -151,4 +220,27 @@ func calcThumbnailPosition(duration float64, position interface{}) string {
 		ret = formatDuration(time.Duration(duration * pos))
 	}
 	return ret
+}
+
+func filetype(filename string) string {
+	index := strings.LastIndexByte(filename, '.')
+	if index < 0 {
+		return filepath.Base(filename)
+	}
+	return filename[index:]
+}
+
+func wrapExecError(err error, output []byte) error {
+	if err == nil || len(output) == 0 {
+		return err
+	}
+	return fmt.Errorf("err: %s\nout: %s", err.Error(), string(output))
+}
+
+func parseVideoModOptions(opts ...interface{}) *VideoModOptions {
+	options := &VideoModOptions{}
+	if len(opts) != 0 {
+		options = opts[0].(*VideoModOptions)
+	}
+	return options.Defaults()
 }

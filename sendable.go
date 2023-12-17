@@ -132,12 +132,16 @@ func (s *Sticker) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error)
 
 // Send delivers media through bot b to recipient.
 func (v *Video) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
-	if v.ThumbnailBuilder != nil {
-		filename, err := v.ThumbnailBuilder(v)
+	for _, mod := range v.Modifiers {
+		temporaries, err := mod(v)
+		for _, tmp := range temporaries {
+			if tmp != "" {
+				defer os.Remove(tmp)
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
-		defer os.Remove(filename)
 	}
 
 	params := map[string]string{
@@ -183,6 +187,20 @@ func (v *Video) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
 
 // Send delivers animation through bot b to recipient.
 func (a *Animation) Send(b *Bot, to Recipient, opt *SendOptions) (*Message, error) {
+	v := a.ToVideo(true)
+	for _, mod := range v.Modifiers {
+		temporaries, err := mod(v)
+		for _, tmp := range temporaries {
+			if tmp != "" {
+				defer os.Remove(tmp)
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	a = v.ToAnimation()
+
 	params := map[string]string{
 		"chat_id":   to.Recipient(),
 		"caption":   a.Caption,
