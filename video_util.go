@@ -15,12 +15,13 @@ const (
 	ffmpeg  = "ffmpeg"
 	ffprobe = "ffprobe"
 	convert = "convert"
+	preset  = "fast"
 )
 
 // ThumbnailAt creates a thumbnail at a position of 2 types:
 // 1. float64 -- from [0, 1], relative position in Video
 // 2. string  -- position in ffmpeg format, i.e. 00:05:12.99
-func ThumbnailAt(position interface{}, opts ...interface{}) VideoModifier {
+func ThumbnailAt(position interface{}, opts ...*VideoModOpt) VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *Video) (filename []string, err error) {
@@ -47,7 +48,7 @@ func ThumbnailAt(position interface{}, opts ...interface{}) VideoModifier {
 // MuteVideo by creating a local muted copy.
 // https://superuser.com/questions/268985/remove-audio-from-video-file-with-ffmpeg
 // ffmpeg -i $input_file -vcodec copy -an $output_file
-func MuteVideo(opts ...interface{}) VideoModifier {
+func MuteVideo(opts ...*VideoModOpt) VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *Video) (temporaries []string, err error) {
@@ -72,12 +73,12 @@ func MuteVideo(opts ...interface{}) VideoModifier {
 	}
 }
 
-// ConvertH264WithDimensions by creating a local muted copy.
-func ConvertH264WithDimensions(width int, height int, opts ...interface{}) VideoModifier {
+// VideoMod is a general purpose VideoModifier. Accepts (*VideoModOpt) as argument.
+func VideoMod(opts ...*VideoModOpt) VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	// https://stackoverflow.com/questions/54063902/resize-videos-with-ffmpeg-keep-aspect-ratio
-	scaleRule := fmt.Sprintf("scale=if(gte(iw\\,ih)\\,min(%d\\,iw)\\,-2):if(lt(iw\\,ih)\\,min(%d\\,ih)\\,-2)", width, height)
+	scaleRule := fmt.Sprintf("scale=if(gte(iw\\,ih)\\,min(%d\\,iw)\\,-2):if(lt(iw\\,ih)\\,min(%d\\,ih)\\,-2)", options.Width, options.Height)
 
 	return func(video *Video) (temporaries []string, err error) {
 		if video == nil || video.FileLocal == "" {
@@ -94,6 +95,7 @@ func ConvertH264WithDimensions(width int, height int, opts ...interface{}) Video
 			"-vf", scaleRule,
 			"-vcodec", "libx264",
 			"-acodec", "aac",
+			"-preset", options.Preset,
 			tmpFile.Name()).
 			CombinedOutput()
 		if err != nil {
@@ -113,16 +115,19 @@ func ConvertH264WithDimensions(width int, height int, opts ...interface{}) Video
 	}
 }
 
-type VideoModOptions struct {
-	Convert string
+type VideoModOpt struct {
+	Width   int
+	Height  int
+	Preset  string
 	Ffmpeg  string
 	Ffprobe string
+	Convert string
 	TmpDir  string
 }
 
-func (opts *VideoModOptions) Defaults() *VideoModOptions {
+func (opts *VideoModOpt) Defaults() *VideoModOpt {
 	if opts == nil {
-		opts = &VideoModOptions{}
+		opts = &VideoModOpt{}
 	}
 	if opts.Convert == "" {
 		opts.Convert = convert
@@ -132,6 +137,15 @@ func (opts *VideoModOptions) Defaults() *VideoModOptions {
 	}
 	if opts.Ffprobe == "" {
 		opts.Ffprobe = ffprobe
+	}
+	if opts.Width <= 0 {
+		opts.Width = 5000
+	}
+	if opts.Height <= 0 {
+		opts.Height = 5000
+	}
+	if opts.Preset == "" {
+		opts.Preset = preset
 	}
 	return opts
 }
@@ -237,10 +251,10 @@ func wrapExecError(err error, output []byte) error {
 	return fmt.Errorf("err: %s\nout: %s", err.Error(), string(output))
 }
 
-func parseVideoModOptions(opts ...interface{}) *VideoModOptions {
-	options := &VideoModOptions{}
+func parseVideoModOptions(opts ...*VideoModOpt) *VideoModOpt {
+	options := &VideoModOpt{}
 	if len(opts) != 0 {
-		options = opts[0].(*VideoModOptions)
+		options = opts[0]
 	}
 	return options.Defaults()
 }

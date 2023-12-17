@@ -206,9 +206,9 @@ func (v *Video) ToAnimation() *Animation {
 	}
 }
 
-func (v *Video) With(mods ...VideoModifier) *Video {
+func (v Video) With(mods ...VideoModifier) *Video {
 	v.Modifiers = append(v.Modifiers, mods...)
-	return v
+	return &v
 }
 
 func (v *Video) MediaType() string {
