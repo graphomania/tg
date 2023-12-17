@@ -3,6 +3,7 @@ package telebot
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -263,4 +264,41 @@ func ErrIs(s string, err error) bool {
 // wrapError returns new wrapped telebot-related error.
 func wrapError(err error) error {
 	return fmt.Errorf("telebot: %w", err)
+}
+
+func OnErrorLog(logger ...*log.Logger) func(err error, ctx Context) {
+	logger_ := log.Default()
+	if len(logger) != 0 {
+		logger_ = logger[0]
+	}
+
+	return func(err error, ctx Context) {
+		line := []string{fmt.Sprintf("ERROR: %v", err)}
+		if ctx != nil {
+			if chat := ctx.Chat(); chat != nil {
+				line = append(line, fmt.Sprintf("CHAT: %s %s %s (%d)", chat.Title, chat.FirstName, chat.LastName, chat.ID))
+			}
+		}
+		logger_.Println(strings.Join(line, " | "))
+	}
+}
+
+func OnErrorForward(chatIDs ...int64) func(err error, ctx Context) {
+	return func(err error, ctx Context) {
+		if ctx == nil || ctx.Bot() == nil {
+			return
+		}
+
+		errorMsg := fmt.Sprintf("ERROR: %v", err)
+		bot := ctx.Bot()
+		failedMsg := ctx.Message()
+		for _, chatID := range chatIDs {
+			chat := &Chat{ID: chatID}
+			_, _ = bot.Send(chat, errorMsg)
+
+			if failedMsg != nil {
+				_, _ = ctx.Bot().Forward(chat, failedMsg)
+			}
+		}
+	}
 }
