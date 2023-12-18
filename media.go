@@ -27,7 +27,7 @@ type InputMedia struct {
 	Duration             int      `json:"duration,omitempty"`
 	Title                string   `json:"title,omitempty"`
 	Performer            string   `json:"performer,omitempty"`
-	Streaming            bool     `json:"supports_streaming,omitempty"`
+	NoStreaming          bool     `json:"supports_streaming,omitempty"`
 	DisableTypeDetection bool     `json:"disable_content_type_detection,omitempty"`
 	HasSpoiler           bool     `json:"is_spoiler,omitempty"`
 }
@@ -182,11 +182,11 @@ type Video struct {
 	Duration int `json:"duration,omitempty"`
 
 	// (Optional)
-	Caption   string `json:"caption,omitempty"`
-	Thumbnail *Photo `json:"thumb,omitempty"`
-	Streaming bool   `json:"supports_streaming,omitempty"`
-	MIME      string `json:"mime_type,omitempty"`
-	FileName  string `json:"file_name,omitempty"`
+	Caption     string `json:"caption,omitempty"`
+	Thumbnail   *Photo `json:"thumb,omitempty"`
+	NoStreaming bool   `json:"supports_streaming,omitempty"`
+	MIME        string `json:"mime_type,omitempty"`
+	FileName    string `json:"file_name,omitempty"`
 
 	// Modifiers are simple helper functions to modify videos before uploading.
 	Modifiers []VideoModifier `json:"-"`
@@ -222,12 +222,12 @@ func (v *Video) MediaFile() *File {
 
 func (v *Video) InputMedia() InputMedia {
 	return InputMedia{
-		Type:      v.MediaType(),
-		Caption:   v.Caption,
-		Width:     v.Width,
-		Height:    v.Height,
-		Duration:  v.Duration,
-		Streaming: v.Streaming,
+		Type:        v.MediaType(),
+		Caption:     v.Caption,
+		Width:       v.Width,
+		Height:      v.Height,
+		Duration:    v.Duration,
+		NoStreaming: v.NoStreaming,
 	}
 }
 
@@ -251,16 +251,16 @@ type Animation struct {
 
 func (a *Animation) ToVideo(streaming bool) *Video {
 	return &Video{
-		File:      a.File,
-		Width:     a.Width,
-		Height:    a.Height,
-		Duration:  a.Duration,
-		Caption:   a.Caption,
-		Thumbnail: a.Thumbnail,
-		Streaming: streaming,
-		MIME:      a.MIME,
-		FileName:  a.FileName,
-		Modifiers: a.Modifiers,
+		File:        a.File,
+		Width:       a.Width,
+		Height:      a.Height,
+		Duration:    a.Duration,
+		Caption:     a.Caption,
+		Thumbnail:   a.Thumbnail,
+		NoStreaming: !streaming,
+		MIME:        a.MIME,
+		FileName:    a.FileName,
+		Modifiers:   a.Modifiers,
 	}
 }
 

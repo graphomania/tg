@@ -22,9 +22,22 @@ const (
 // 1. float64 -- from [0, 1], relative position in Video
 // 2. string  -- position in ffmpeg format, i.e. 00:05:12.99
 func ThumbnailAt(position interface{}, opts ...*VideoModOpt) VideoModifier {
+	switch position.(type) {
+	case float64:
+	case string:
+	default:
+		panic("ThumbnailAt: position type is not supported")
+	}
+
 	options := parseVideoModOptions(opts...)
 
 	return func(video *Video) (filename []string, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("ThumbnailAt panicked with %v", err)
+			}
+		}()
+
 		if video == nil || video.FileLocal == "" {
 			return nil, nil
 		}
@@ -41,6 +54,9 @@ func ThumbnailAt(position interface{}, opts ...*VideoModOpt) VideoModifier {
 
 		thumbnail, err := makeThumbnailAt(options.TmpDir, options.Convert, options.Ffmpeg, video.FileLocal, calcThumbnailPosition(videoDuration, position))
 		video.Thumbnail = &Photo{File: FromDisk(thumbnail)}
+		video.Width = metadata.Streams[0].Width
+		video.Height = metadata.Streams[0].Height
+		video.Duration = int(videoDuration)
 		return []string{thumbnail}, err
 	}
 }
@@ -177,7 +193,7 @@ func getFileMetadata(ffprobe, filename string) (*fileMetadata, error) {
 	return &metadata, nil
 }
 
-func formatDuration(d time.Duration) string {
+func formatDuration(seconds float64) string {
 	trailingZeros := func(d time.Duration, zeros int) string {
 		num := int64(d)
 		s := fmt.Sprintf("%d", num)
@@ -187,6 +203,7 @@ func formatDuration(d time.Duration) string {
 		return s
 	}
 
+	d := time.Duration(seconds) * time.Second
 	return fmt.Sprintf("%s:%s:%s.%s",
 		trailingZeros(d/time.Hour%24, 2), trailingZeros(d/time.Minute%60, 2),
 		trailingZeros(d/time.Second%60, 2), trailingZeros(d/time.Millisecond%1000, 3))
@@ -231,7 +248,7 @@ func calcThumbnailPosition(duration float64, position interface{}) string {
 	case string:
 		ret = pos
 	case float64:
-		ret = formatDuration(time.Duration(duration * pos))
+		ret = formatDuration(duration * pos)
 	}
 	return ret
 }
