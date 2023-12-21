@@ -2,7 +2,6 @@ package telebot
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/graphomania/tg/scheduler"
 	"io"
@@ -55,6 +54,7 @@ func NewBot(pref Settings) (*Bot, error) {
 		parseMode:   pref.ParseMode,
 		client:      client,
 		scheduler:   pref.Scheduler,
+		retries:     pref.Retries,
 	}
 
 	if pref.Offline {
@@ -90,6 +90,7 @@ type Bot struct {
 	client      *http.Client
 	stopClient  chan struct{}
 	scheduler   scheduler.Scheduler
+	retries     int
 }
 
 // Settings represents a utility struct for passing certain
@@ -134,6 +135,8 @@ type Settings struct {
 	// API quota compliant scheduler, if nil => all requests would be sent right away.
 	// https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
 	Scheduler scheduler.Scheduler
+
+	Retries int
 }
 
 var defaultOnError = func(err error, c Context) {
@@ -297,20 +300,6 @@ func (b *Bot) Send(to Recipient, what interface{}, opts ...interface{}) (*Messag
 	}
 }
 
-// SendWithConnectionRetries is basically Bot.Send(...) but with retries
-// in case of connection failure/changing the network, which could be useful,
-// when uploading big files (hundreds of megabytes).
-func (b *Bot) SendWithConnectionRetries(to Recipient, what interface{}, retries int, opts ...interface{}) (*Message, error) {
-	for i := 0; i <= retries; i++ {
-		msg, err := b.Send(to, what, opts...)
-		if err != nil && strings.Contains(err.Error(), "connection reset by peer") {
-			continue
-		}
-		return msg, err
-	}
-	return nil, wrapError(errors.New("limit of retries has been reached"))
-}
-
 // SendAlbum sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
@@ -361,9 +350,7 @@ func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, 
 	}
 	b.embedSendOptions(params, sendOpts)
 
-	data, err := b.scheduler.SyncFunc(len(media), to.Recipient(), func() ([]byte, error) {
-		return b.sendFiles("sendMediaGroup", files, params)
-	})
+	data, err := b.sendFiles("sendMediaGroup", files, params)
 	if err != nil {
 		return nil, err
 	}

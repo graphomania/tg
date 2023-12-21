@@ -1,6 +1,7 @@
 package telebot
 
 import (
+	"fmt"
 	"github.com/graphomania/tg/scheduler"
 	"github.com/stretchr/testify/require"
 	"log"
@@ -17,7 +18,7 @@ func TestConservative(t *testing.T) {
 
 	alb := Album{}
 	for i := 0; i < 10; i++ {
-		alb = append(alb, &Photo{File: FromDisk("testdata/pic.jpg")})
+		alb = append(alb, &Photo{File: FromDisk("testdata/pic.jpg"), Caption: fmt.Sprint(i + 1)})
 	}
 
 	bot, err := NewBot(Settings{
@@ -29,17 +30,14 @@ func TestConservative(t *testing.T) {
 			require.NoError(t, err)
 		},
 		Scheduler: scheduler.Default(),
+		Retries:   1,
 	})
 	require.NoError(t, err)
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 400; i++ {
 		log.Printf("%d.\n", i)
-		_, err := bot.SendAlbum(&Chat{ID: chat}, alb[0:(10-i)])
-		require.NoError(t, err)
-	}
-
-	for i := 0; i < 30; i++ {
-		_, err := bot.Send(&Chat{ID: chat}, strconv.Itoa(i))
+		//_, err := bot.SendAlbum(&Chat{ID: chat}, alb[0:(((i+1)*2)%9+1)])
+		_, err := bot.SendAlbum(&Chat{ID: chat}, alb[0:10])
 		require.NoError(t, err)
 	}
 }

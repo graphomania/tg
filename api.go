@@ -81,7 +81,7 @@ func (b *Bot) Raw(method string, payload interface{}) ([]byte, error) {
 	return b.RawNoSync(method, payload)
 }
 
-func (b *Bot) sendFiles(method string, files map[string]File, params map[string]string) ([]byte, error) {
+func (b *Bot) sendFilesNoSync(method string, files map[string]File, params map[string]string) ([]byte, error) {
 	rawFiles := make(map[string]interface{})
 	for name, f := range files {
 		switch {
@@ -141,12 +141,42 @@ func (b *Bot) sendFiles(method string, files map[string]File, params map[string]
 		return nil, ErrInternal
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, wrapError(err)
 	}
 
 	return data, extractOk(data)
+}
+
+func (b *Bot) sendFilesSynced(method string, files map[string]File, params map[string]string) ([]byte, error) {
+	if chatID, ok := params["chat_id"]; ok {
+		return b.scheduler.SyncFunc(len(files), chatID, func() ([]byte, error) {
+			return b.sendFilesNoSync(method, files, params)
+		})
+	}
+	return b.sendFilesNoSync(method, files, params)
+}
+
+func (b *Bot) sendFilesWithRetries(method string, files map[string]File, params map[string]string, retries int) ([]byte, error) {
+	ret, err := b.sendFilesSynced(method, files, params)
+	if err == nil {
+		return ret, nil
+	}
+
+	if retries > 0 {
+		var sleepTime time.Duration
+		if _, err := fmt.Sscanf(err.Error(), "telegram: retry after %d (429))", &sleepTime); err != nil {
+			time.Sleep(time.Second * sleepTime)
+		}
+		return b.sendFilesWithRetries(method, files, params, retries-1)
+	}
+
+	return ret, err
+}
+
+func (b *Bot) sendFiles(method string, files map[string]File, params map[string]string) ([]byte, error) {
+	return b.sendFilesWithRetries(method, files, params, b.retries)
 }
 
 func addFileToWriter(writer *multipart.Writer, filename, field string, file interface{}) error {
