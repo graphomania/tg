@@ -10,8 +10,8 @@ import (
 )
 
 // EmbedMetadata ensures, telegram would process a file correctly.
-// REQUIRES `ffprobe` on the system, could be passed via Option.Convert
-func EmbedMetadata(opts ...*Option) telebot.VideoModifier {
+// REQUIRES `ffprobe` on the system, could be passed via Opt.Convert
+func EmbedMetadata(opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *telebot.Video) (temporaries []string, err error) {
@@ -21,8 +21,8 @@ func EmbedMetadata(opts ...*Option) telebot.VideoModifier {
 }
 
 // ThumbnailFrom converts a picture to a 320x320 frame, suitable from Telegram video thumbnail.
-// REQUIRES `convert` on the system, could be passed via Option.Convert.
-func ThumbnailFrom(filename string, opts ...*Option) telebot.VideoModifier {
+// REQUIRES `convert` on the system, could be passed via Opt.Convert.
+func ThumbnailFrom(filename string, opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *telebot.Video) (temporaries []string, err error) {
@@ -39,8 +39,8 @@ func ThumbnailFrom(filename string, opts ...*Option) telebot.VideoModifier {
 //  1. float64 -- from [0, 1], relative position in Video
 //  2. string  -- position in ffmpeg format, i.e. "00:05:12.99"
 //
-// REQUIRES `ffmpeg`, `ffprobe` on the system, could be passed via Option.Convert.
-func ThumbnailAt(position interface{}, opts ...*Option) telebot.VideoModifier {
+// REQUIRES `ffmpeg`, `ffprobe` on the system, could be passed via Opt.Convert.
+func ThumbnailAt(position interface{}, opts ...*Opt) telebot.VideoModifier {
 	switch position.(type) {
 	case float64:
 	case string:
@@ -73,8 +73,8 @@ func ThumbnailAt(position interface{}, opts ...*Option) telebot.VideoModifier {
 }
 
 // Mute a video by creating a local muted copy.
-// REQUIRES `ffmpeg` on the system, could be passed via Option.Convert.
-func Mute(opts ...*Option) telebot.VideoModifier {
+// REQUIRES `ffmpeg` on the system, could be passed via Opt.Convert.
+func Mute(opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *telebot.Video) (temporaries []string, err error) {
@@ -100,8 +100,8 @@ func Mute(opts ...*Option) telebot.VideoModifier {
 }
 
 // Convert is a general purpose VideoModifier, converts a video to h264, could decrease its dimensions.
-// REQUIRES `ffmpeg` on the system, could be passed via Option.Convert.
-func Convert(opts ...*Option) telebot.VideoModifier {
+// REQUIRES `ffmpeg` on the system, could be passed via Opt.Convert.
+func Convert(opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	// https://stackoverflow.com/questions/54063902/resize-videos-with-ffmpeg-keep-aspect-ratio
@@ -140,7 +140,7 @@ func Time(mods ...telebot.VideoModifier) telebot.VideoModifier {
 		for _, mod := range mods {
 			start := time.Now()
 			temp, err := mod(video)
-			log.Printf("%s for %s took %s", GetFunctionName(mod), video.FileName, time.Since(start).String())
+			log.Printf("%s for %s took %s", getFunctionName(mod), video.FileName, time.Since(start).String())
 			temporaries = append(temporaries, temp...)
 			if err != nil {
 				return temporaries, err
@@ -178,5 +178,11 @@ func IgnoreErr(mod telebot.VideoModifier) telebot.VideoModifier {
 	return func(video *telebot.Video) (temporaries []string, err error) {
 		ret_, _ := mod(video)
 		return ret_, nil
+	}
+}
+
+func RemoveAfter(opts ...Opt) telebot.VideoModifier {
+	return func(video *telebot.Video) (temporaries []string, err error) {
+		return []string{video.FileLocal}, nil
 	}
 }

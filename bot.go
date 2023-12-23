@@ -53,6 +53,7 @@ func NewBot(pref Settings) (*Bot, error) {
 		verbose:     pref.Verbose,
 		parseMode:   pref.ParseMode,
 		client:      client,
+		local:       pref.Local,
 		scheduler:   pref.Scheduler,
 		retries:     pref.Retries,
 	}

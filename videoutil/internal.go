@@ -138,15 +138,15 @@ func wrapExecError(err error, output []byte) error {
 	return fmt.Errorf("err: %s\nout: %s", err.Error(), string(output))
 }
 
-func parseVideoModOptions(opts ...*Option) *Option {
-	options := &Option{}
+func parseVideoModOptions(opts ...*Opt) *Opt {
+	options := &Opt{}
 	if len(opts) != 0 {
 		options = opts[0]
 	}
 	return options.Defaults()
 }
 
-func getSetMetadata(video *telebot.Video, opt *Option) (meta *fileMetadata, duration float64, err error) {
+func getSetMetadata(video *telebot.Video, opt *Opt) (meta *fileMetadata, duration float64, err error) {
 	if video == nil || video.FileLocal == "" {
 		return nil, 0, nil
 	}
@@ -171,6 +171,6 @@ func makeScaleRule(width int, height int) string {
 	return fmt.Sprintf("scale=if(gte(iw\\,ih)\\,min(%d\\,iw)\\,-2):if(lt(iw\\,ih)\\,min(%d\\,ih)\\,-2)", width, height)
 }
 
-func GetFunctionName(i interface{}) string {
+func getFunctionName(i interface{}) string {
 	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 }

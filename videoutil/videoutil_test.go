@@ -2,6 +2,7 @@ package videoutil
 
 import (
 	"github.com/graphomania/tg"
+	"github.com/graphomania/tg/photoutil"
 	"github.com/graphomania/tg/scheduler"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -39,7 +40,7 @@ func TestVideoUtil(t *testing.T) {
 	require.NoError(t, prelude())
 
 	testFile := "testdata/vid.mp4"
-	options := &Option{Preset: "fast", TmpDir: "testdata"}
+	options := &Opt{Preset: "fast", TmpDir: "testdata"}
 	token := os.Getenv("TG_TEST_TOKEN")
 	chatID, err := strconv.ParseInt(os.Getenv("TG_TEST_CHAT"), 10, 64)
 	require.NoError(t, err)
@@ -55,6 +56,12 @@ func TestVideoUtil(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, err)
+
+	_, err = bot.Send(chat, telebot.Photo{File: telebot.FromDisk("testdata/arina.jpg")}.
+		With(photoutil.Resize(600, 600)))
+	require.NoError(t, err)
+
+	os.Exit(1)
 
 	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
 		With(Time(ThumbnailAt(0.5, options))))

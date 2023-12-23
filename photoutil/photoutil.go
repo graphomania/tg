@@ -18,7 +18,7 @@ type Opt struct {
 
 func Resize(width, height int, opts ...Opt) telebot.PhotoModifier {
 	opt := parseOpts(opts...)
-	resizeArg := fmt.Sprintf("%dx%d\\>", width, height)
+	resizeArg := fmt.Sprintf("%dx%d>", width, height)
 	return func(photo *telebot.Photo) (temporaries []string, err error) {
 		tmp, err := os.CreateTemp(opt.TmpPath, "*.jpg")
 		if err != nil {
@@ -27,10 +27,12 @@ func Resize(width, height int, opts ...Opt) telebot.PhotoModifier {
 		_ = tmp.Close()
 
 		ret := []string{tmp.Name()}
-		output, err := exec.Command(opt.Convert, photo.File.FileLocal, resizeArg, tmp.Name()).CombinedOutput()
+		output, err := exec.Command(opt.Convert, photo.File.FileLocal, "-resize", resizeArg, tmp.Name()).CombinedOutput()
 		if err != nil {
 			return ret, wrapExecError(err, output)
 		}
+
+		photo.FileLocal = tmp.Name()
 
 		return ret, nil
 	}

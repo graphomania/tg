@@ -7,7 +7,7 @@ const (
 	preset  = "fast"
 )
 
-type Option struct {
+type Opt struct {
 	Width   int
 	Height  int
 	Preset  string
@@ -17,9 +17,9 @@ type Option struct {
 	TmpDir  string
 }
 
-func (opts *Option) Defaults() *Option {
+func (opts *Opt) Defaults() *Opt {
 	if opts == nil {
-		opts = &Option{}
+		opts = &Opt{}
 	}
 	if opts.Convert == "" {
 		opts.Convert = convert

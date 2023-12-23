@@ -45,6 +45,10 @@ type Inputtable interface {
 // Album lets you group multiple media into a single message.
 type Album []Inputtable
 
+// PhotoModifier is a simple modifier function, called when the Photo is sent.
+// Returns temporary files, which shall be removed after the Photo is sent
+type PhotoModifier func(photo *Photo) (temporaries []string, err error)
+
 // Photo object represents a single photo file.
 type Photo struct {
 	File
@@ -52,6 +56,13 @@ type Photo struct {
 	Width   int    `json:"width"`
 	Height  int    `json:"height"`
 	Caption string `json:"caption,omitempty"`
+
+	Modifiers []PhotoModifier `json:"-"`
+}
+
+func (p Photo) With(mods ...PhotoModifier) *Photo {
+	p.Modifiers = append(p.Modifiers, mods...)
+	return &p
 }
 
 type photoSize struct {
