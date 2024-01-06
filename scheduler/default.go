@@ -26,6 +26,11 @@ func Conservative() Scheduler {
 	return Custom(ApiRequestQuota*4/5, ApiRequestQuotaPerChat*4/5, DefaultPollingRate*10)
 }
 
+// ExtraConservative gives you a headroom of 25% compared to Default, just in case something goes wrong.
+func ExtraConservative() Scheduler {
+	return Custom(ApiRequestQuota/2, ApiRequestQuotaPerChat/2, DefaultPollingRate*100)
+}
+
 // Default telegram API limits, 20/minute -- per chat quota, 30/second -- global quota.
 func Default() Scheduler {
 	return Custom(ApiRequestQuota, ApiRequestQuotaPerChat, DefaultPollingRate)
