@@ -9,9 +9,40 @@ import (
 	"time"
 )
 
-// EmbedMetadata ensures, telegram would process a file correctly.
-// REQUIRES `ffprobe` on the system, could be passed via Opt.Convert
-func EmbedMetadata(opts ...*Opt) telebot.VideoModifier {
+// ExtraFormats tries to perform `ffmpeg -i $FILENAME -vcodec copy -acodec copy return.mp4`.
+// To ensure conversion to .H264 use with Converted().
+func ExtraFormats(opts ...*Opt) telebot.VideoModifier {
+	options := parseVideoModOptions(opts...)
+
+	return func(video *telebot.Video) (temporaries []string, err error) {
+		if video == nil || video.FileLocal == "" {
+			return nil, nil
+		}
+
+		tmpFile, err := os.CreateTemp(options.TmpDir, "*.mp4")
+		if err != nil {
+			return nil, err
+		}
+
+		output, err := exec.Command(options.Ffmpeg, "-y",
+			"-i", video.FileLocal,
+			"-vcodec", "copy",
+			"-acodec", "copy",
+			tmpFile.Name()).
+			CombinedOutput()
+		if err != nil {
+			return []string{tmpFile.Name()}, wrapExecError(err, output)
+		}
+
+		video.FileLocal = tmpFile.Name()
+
+		return []string{tmpFile.Name()}, nil
+	}
+}
+
+// WithMetadata ensures, Telegram would process a file correctly.
+// REQUIRES `ffprobe` on the system, which could be passed via Opt.Convert
+func WithMetadata(opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *telebot.Video) (temporaries []string, err error) {
@@ -72,9 +103,9 @@ func ThumbnailAt(position interface{}, opts ...*Opt) telebot.VideoModifier {
 	}
 }
 
-// Mute a video by creating a local muted copy.
+// Muted a video by creating a local muted copy.
 // REQUIRES `ffmpeg` on the system, could be passed via Opt.Convert.
-func Mute(opts ...*Opt) telebot.VideoModifier {
+func Muted(opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	return func(video *telebot.Video) (temporaries []string, err error) {
@@ -99,9 +130,9 @@ func Mute(opts ...*Opt) telebot.VideoModifier {
 	}
 }
 
-// Convert is a general purpose VideoModifier, converts a video to h264, could decrease its dimensions.
-// REQUIRES `ffmpeg` on the system, could be passed via Opt.Convert.
-func Convert(opts ...*Opt) telebot.VideoModifier {
+// Converted is a general purpose VideoModifier, converts a video to h264, could decrease its dimensions.
+// REQUIRES `ffmpeg` on the system, which could be passed via Opt.Convert.
+func Converted(opts ...*Opt) telebot.VideoModifier {
 	options := parseVideoModOptions(opts...)
 
 	// https://stackoverflow.com/questions/54063902/resize-videos-with-ffmpeg-keep-aspect-ratio
@@ -116,8 +147,8 @@ func Convert(opts ...*Opt) telebot.VideoModifier {
 			return nil, err
 		}
 
-		output, err := exec.Command(options.Ffmpeg,
-			"-y", "-i", video.FileLocal,
+		output, err := exec.Command(options.Ffmpeg, "-y",
+			"-i", video.FileLocal,
 			"-vf", scaleRule,
 			"-vcodec", "libx264",
 			"-acodec", "aac",
@@ -134,8 +165,8 @@ func Convert(opts ...*Opt) telebot.VideoModifier {
 	}
 }
 
-// Time logs time each telebot.VideoModifier to complete the task. Could be useful for
-func Time(mods ...telebot.VideoModifier) telebot.VideoModifier {
+// Timed logs time each telebot.VideoModifier to complete the task. Could be useful for testing.
+func Timed(mods ...telebot.VideoModifier) telebot.VideoModifier {
 	return func(video *telebot.Video) (temporaries []string, err error) {
 		for _, mod := range mods {
 			start := time.Now()
@@ -150,6 +181,7 @@ func Time(mods ...telebot.VideoModifier) telebot.VideoModifier {
 	}
 }
 
+// Join multiple telebot.VideoModifier into a one. I.e., for measuring a bunch of them.
 func Join(mods ...telebot.VideoModifier) telebot.VideoModifier {
 	return func(video *telebot.Video) (temporaries []string, err error) {
 		for _, mod := range mods {

@@ -57,26 +57,24 @@ func TestVideoUtil(t *testing.T) {
 
 	require.NoError(t, err)
 
-	_, err = bot.Send(chat, telebot.Photo{File: telebot.FromDisk("testdata/arina.jpg")}.
-		With(photoutil.Resize(600, 600)))
-	require.NoError(t, err)
-
-	os.Exit(1)
-
-	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
-		With(Time(ThumbnailAt(0.5, options))))
+	_, err = bot.Send(chat, telebot.Photo{File: telebot.FromDisk("testdata/pic.jpg")}.
+		With(photoutil.Converted(photoutil.Opt{Width: 600, Height: 600})))
 	require.NoError(t, err)
 
 	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
-		With(Time(ThumbnailFrom("testdata/pic.jpg", options))))
+		With(Timed(ThumbnailAt(0.5, options))))
 	require.NoError(t, err)
 
 	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
-		With(Time(Convert(options), ThumbnailFrom("testdata/pic.jpg", options), EmbedMetadata())))
+		With(Timed(ThumbnailFrom("testdata/pic.jpg", options))))
+	require.NoError(t, err)
+
+	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
+		With(Timed(Converted(options), ThumbnailFrom("testdata/pic.jpg", options), WithMetadata())))
 	require.NoError(t, err)
 
 	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile)}.
-		With(Time(Convert(options), ThumbnailAt(0.5), Mute())))
+		With(Timed(Converted(options), ThumbnailAt(0.5), Muted())))
 
 	require.NoError(t, err)
 }
