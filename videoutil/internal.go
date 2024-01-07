@@ -164,6 +164,10 @@ func getSetMetadata(video *telebot.Video, opt *Opt) (meta *fileMetadata, duratio
 		video.Duration = int(duration)
 		video.MIME = "video/mp4"
 	}
+	if stat, err := os.Stat(video.FileLocal); err == nil {
+		video.FileSize = stat.Size()
+	}
+
 	return
 }
 
