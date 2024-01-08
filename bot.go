@@ -304,20 +304,21 @@ func (b *Bot) Send(to Recipient, what interface{}, opts ...interface{}) (*Messag
 // SendAlbum sends multiple instances of media as a single message.
 // To include the caption, make sure the first Inputtable of an album has it.
 // From all existing options, it only supports tele.Silent.
-func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, error) {
+func (b *Bot) SendAlbum(to Recipient, album Album, opts ...interface{}) ([]Message, error) {
 	if to == nil {
 		return nil, ErrBadRecipient
 	}
 
 	sendOpts := extractOptions(opts)
-	media := make([]string, len(a))
+	inputMedias := make([]string, len(album))
 	files := make(map[string]File)
 
-	for i, x := range a {
+	for i, med := range album {
 		var (
-			repr string
-			data []byte
-			file = x.MediaFile()
+			repr          string
+			data          []byte
+			file          = med.MediaFile()
+			thumbnailRepr = ""
 		)
 
 		switch {
@@ -326,28 +327,67 @@ func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, 
 		case file.FileURL != "":
 			repr = file.FileURL
 		case file.OnDisk() || file.FileReader != nil:
+			switch media := med.(type) {
+			case *Photo:
+				for _, mod := range media.Modifiers {
+					temporaries, err := mod(media)
+					for _, tmp := range temporaries {
+						if tmp != "" {
+							defer os.Remove(tmp)
+						}
+					}
+					if err != nil {
+						return nil, err
+					}
+				}
+				med = media
+				file = &media.File
+
+			case *Video:
+				for _, mod := range media.Modifiers {
+					temporaries, err := mod(media)
+					for _, tmp := range temporaries {
+						if tmp != "" {
+							defer os.Remove(tmp)
+						}
+					}
+					if err != nil {
+						return nil, err
+					}
+				}
+				med = media
+				file = &media.File
+				if media.Thumbnail != nil {
+					thumbnailRepr = "attach://thumbnail" + strconv.Itoa(i)
+					files["thumbnail"+strconv.Itoa(i)] = media.Thumbnail.File
+				}
+			}
+
 			repr = "attach://" + strconv.Itoa(i)
 			files[strconv.Itoa(i)] = *file
 		default:
 			return nil, fmt.Errorf("telebot: album entry #%d does not exist", i)
 		}
 
-		im := x.InputMedia()
-		im.Media = repr
-
+		inputMedia := med.InputMedia()
 		if len(sendOpts.Entities) > 0 {
-			im.Entities = sendOpts.Entities
+			inputMedia.Entities = sendOpts.Entities
 		} else {
-			im.ParseMode = sendOpts.ParseMode
+			inputMedia.ParseMode = sendOpts.ParseMode
+		}
+		if thumbnailRepr != "" {
+			inputMedia.Thumbnail = thumbnailRepr
 		}
 
-		data, _ = json.Marshal(im)
-		media[i] = string(data)
+		inputMedia.Media = repr
+
+		data, _ = json.Marshal(inputMedia)
+		inputMedias[i] = string(data)
 	}
 
 	params := map[string]string{
 		"chat_id": to.Recipient(),
-		"media":   "[" + strings.Join(media, ",") + "]",
+		"media":   "[" + strings.Join(inputMedias, ",") + "]",
 	}
 	b.embedSendOptions(params, sendOpts)
 
@@ -379,7 +419,7 @@ func (b *Bot) SendAlbum(to Recipient, a Album, opts ...interface{}) ([]Message, 
 			newID = r.Document.FileID
 		}
 
-		a[i].MediaFile().FileID = newID
+		album[i].MediaFile().FileID = newID
 	}
 
 	return resp.Result, nil

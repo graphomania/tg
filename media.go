@@ -27,7 +27,7 @@ type InputMedia struct {
 	Duration             int      `json:"duration,omitempty"`
 	Title                string   `json:"title,omitempty"`
 	Performer            string   `json:"performer,omitempty"`
-	NoStreaming          bool     `json:"supports_streaming,omitempty"`
+	Streaming            bool     `json:"supports_streaming,omitempty"`
 	DisableTypeDetection bool     `json:"disable_content_type_detection,omitempty"`
 	HasSpoiler           bool     `json:"is_spoiler,omitempty"`
 }
@@ -233,12 +233,12 @@ func (v *Video) MediaFile() *File {
 
 func (v *Video) InputMedia() InputMedia {
 	return InputMedia{
-		Type:        v.MediaType(),
-		Caption:     v.Caption,
-		Width:       v.Width,
-		Height:      v.Height,
-		Duration:    v.Duration,
-		NoStreaming: v.NoStreaming,
+		Type:      v.MediaType(),
+		Caption:   v.Caption,
+		Width:     v.Width,
+		Height:    v.Height,
+		Duration:  v.Duration,
+		Streaming: !v.NoStreaming,
 	}
 }
 

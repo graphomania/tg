@@ -39,7 +39,9 @@ func prelude() error {
 func TestVideoUtil(t *testing.T) {
 	require.NoError(t, prelude())
 
-	testFile := "testdata/vid.mp4"
+	testPhoto := "testdata/pic.jpg"
+	testVideo := "testdata/vid.mp4"
+	testVideoM4V := "testdata/vid.m4v"
 	options := &Opt{Preset: "fast", TmpDir: "testdata"}
 	token := os.Getenv("TG_TEST_TOKEN")
 	chatID, err := strconv.ParseInt(os.Getenv("TG_TEST_CHAT"), 10, 64)
@@ -57,23 +59,27 @@ func TestVideoUtil(t *testing.T) {
 
 	require.NoError(t, err)
 
-	_, err = bot.Send(chat, telebot.Photo{File: telebot.FromDisk("testdata/pic.jpg")}.
+	vid := telebot.Video{File: telebot.FromDisk(testVideoM4V)}.With(Timed(ExtraFormats(options), ThumbnailAt(0.5, options)))
+	_, err = bot.SendAlbum(chat, telebot.Album{vid, vid})
+	require.NoError(t, err)
+
+	_, err = bot.Send(chat, telebot.Photo{File: telebot.FromDisk(testPhoto)}.
 		With(photoutil.Converted(photoutil.Opt{Width: 600, Height: 600})))
 	require.NoError(t, err)
 
-	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
+	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testVideo), NoStreaming: true}.
 		With(Timed(ThumbnailAt(0.5, options))))
 	require.NoError(t, err)
 
-	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
-		With(Timed(ThumbnailFrom("testdata/pic.jpg", options))))
+	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testVideo), NoStreaming: true}.
+		With(Timed(ThumbnailFrom(testPhoto, options))))
 	require.NoError(t, err)
 
-	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile), NoStreaming: true}.
-		With(Timed(Converted(options), ThumbnailFrom("testdata/pic.jpg", options), WithMetadata())))
+	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testVideo), NoStreaming: true}.
+		With(Timed(Converted(options), ThumbnailFrom(testPhoto, options), WithMetadata())))
 	require.NoError(t, err)
 
-	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testFile)}.
+	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testVideo)}.
 		With(Timed(Converted(options), ThumbnailAt(0.5), Muted())))
 
 	require.NoError(t, err)

@@ -70,7 +70,7 @@ func ThumbnailFrom(filename string, opts ...*Opt) telebot.VideoModifier {
 //  1. float64 -- from [0, 1], relative position in Video
 //  2. string  -- position in ffmpeg format, i.e. "00:05:12.99"
 //
-// REQUIRES `ffmpeg`, `ffprobe` on the system, could be passed via Opt.Convert.
+// REQUIRES `ffmpeg`, `ffprobe` on the system, could be passed via Opt.
 func ThumbnailAt(position interface{}, opts ...*Opt) telebot.VideoModifier {
 	switch position.(type) {
 	case float64:

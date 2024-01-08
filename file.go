@@ -23,9 +23,6 @@ type File struct {
 	// FileReader is used for file backed with io.Reader.
 	FileReader io.Reader `json:"-"`
 
-	// Retries on connection failures while uploading.
-	Retries int `json:"-"`
-
 	fileName string
 }
 
