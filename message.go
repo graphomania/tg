@@ -11,130 +11,130 @@ type Message struct {
 	ID int `json:"message_id"`
 
 	// (Optional) Unique identifier of a message thread to which the message belongs; for supergroups only
-	ThreadID int `json:"message_thread_id"`
+	ThreadID int `json:"message_thread_id,omitempty"`
 
 	// For message sent to channels, Sender will be nil
-	Sender *User `json:"from"`
+	Sender *User `json:"from,omitempty,omitempty"`
 
 	// Unixtime, use Message.Time() to get time.Time
 	Unixtime int64 `json:"date"`
 
 	// Conversation the message belongs to.
-	Chat *Chat `json:"chat"`
+	Chat *Chat `json:"chat,omitempty"`
 
 	// Sender of the message, sent on behalf of a chat.
-	SenderChat *Chat `json:"sender_chat"`
+	SenderChat *Chat `json:"sender_chat,omitempty"`
 
 	// For forwarded messages, sender of the original message.
-	OriginalSender *User `json:"forward_from"`
+	OriginalSender *User `json:"forward_from,omitempty"`
 
 	// For forwarded messages, chat of the original message when
 	// forwarded from a channel.
-	OriginalChat *Chat `json:"forward_from_chat"`
+	OriginalChat *Chat `json:"forward_from_chat,omitempty"`
 
 	// For forwarded messages, identifier of the original message
 	// when forwarded from a channel.
-	OriginalMessageID int `json:"forward_from_message_id"`
+	OriginalMessageID int `json:"forward_from_message_id,omitempty"`
 
 	// For forwarded messages, signature of the post author.
-	OriginalSignature string `json:"forward_signature"`
+	OriginalSignature string `json:"forward_signature,omitempty"`
 
 	// For forwarded messages, sender's name from users who
 	// disallow adding a link to their account.
-	OriginalSenderName string `json:"forward_sender_name"`
+	OriginalSenderName string `json:"forward_sender_name,omitempty"`
 
 	// For forwarded messages, unixtime of the original message.
-	OriginalUnixtime int `json:"forward_date"`
+	OriginalUnixtime int `json:"forward_date,omitempty"`
 
 	// Message is a channel post that was automatically forwarded to the connected discussion group.
-	AutomaticForward bool `json:"is_automatic_forward"`
+	AutomaticForward bool `json:"is_automatic_forward,omitempty"`
 
 	// For replies, ReplyTo represents the original message.
 	//
 	// Note that the Message object in this field will not
 	// contain further ReplyTo fields even if it
 	// itself is a reply.
-	ReplyTo *Message `json:"reply_to_message"`
+	ReplyTo *Message `json:"reply_to_message,omitempty"`
 
 	// Shows through which bot the message was sent.
-	Via *User `json:"via_bot"`
+	Via *User `json:"via_bot,omitempty"`
 
 	// (Optional) Time of last edit in Unix.
-	LastEdit int64 `json:"edit_date"`
+	LastEdit int64 `json:"edit_date,omitempty"`
 
 	// (Optional) True, if the message is sent to a forum topic.
-	TopicMessage bool `json:"is_topic_message"`
+	TopicMessage bool `json:"is_topic_message,omitempty"`
 
 	// (Optional) Message can't be forwarded.
-	Protected bool `json:"has_protected_content,omitempty"`
+	Protected bool `json:"has_protected_content,omitempty,omitempty"`
 
 	// AlbumID is the unique identifier of a media message group
 	// this message belongs to.
-	AlbumID string `json:"media_group_id"`
+	AlbumID string `json:"media_group_id,omitempty"`
 
 	// Author signature (in channels).
-	Signature string `json:"author_signature"`
+	Signature string `json:"author_signature,omitempty"`
 
 	// For a text message, the actual UTF-8 text of the message.
-	Text string `json:"text"`
+	Text string `json:"text,omitempty"`
 
 	// For registered commands, will contain the string payload:
 	//
 	// Ex: `/command <payload>` or `/command@botname <payload>`
-	Payload string `json:"-"`
+	Payload string `json:"-,omitempty"`
 
 	// For text messages, special entities like usernames, URLs, bot commands,
 	// etc. that appear in the text.
-	Entities Entities `json:"entities,omitempty"`
+	Entities Entities `json:"entities,omitempty,omitempty"`
 
 	// Some messages containing media, may as well have a caption.
-	Caption string `json:"caption,omitempty"`
+	Caption string `json:"caption,omitempty,omitempty"`
 
 	// For messages with a caption, special entities like usernames, URLs,
 	// bot commands, etc. that appear in the caption.
-	CaptionEntities Entities `json:"caption_entities,omitempty"`
+	CaptionEntities Entities `json:"caption_entities,omitempty,omitempty"`
 
 	// For an audio recording, information about it.
-	Audio *Audio `json:"audio"`
+	Audio *Audio `json:"audio,omitempty"`
 
 	// For a general file, information about it.
-	Document *Document `json:"document"`
+	Document *Document `json:"document,omitempty"`
 
 	// For a photo, all available sizes (thumbnails).
-	Photo *Photo `json:"photo"`
+	Photo *Photo `json:"photo,omitempty"`
 
 	// For a sticker, information about it.
-	Sticker *Sticker `json:"sticker"`
+	Sticker *Sticker `json:"sticker,omitempty"`
 
 	// For a voice message, information about it.
-	Voice *Voice `json:"voice"`
+	Voice *Voice `json:"voice,omitempty"`
 
 	// For a video note, information about it.
-	VideoNote *VideoNote `json:"video_note"`
+	VideoNote *VideoNote `json:"video_note,omitempty"`
 
 	// For a video, information about it.
-	Video *Video `json:"video"`
+	Video *Video `json:"video,omitempty"`
 
 	// For a animation, information about it.
-	Animation *Animation `json:"animation"`
+	Animation *Animation `json:"animation,omitempty"`
 
 	// For a contact, contact information itself.
-	Contact *Contact `json:"contact"`
+	Contact *Contact `json:"contact,omitempty"`
 
 	// For a location, its longitude and latitude.
-	Location *Location `json:"location"`
+	Location *Location `json:"location,omitempty"`
 
 	// For a venue, information about it.
-	Venue *Venue `json:"venue"`
+	Venue *Venue `json:"venue,omitempty"`
 
 	// For a poll, information the native poll.
-	Poll *Poll `json:"poll"`
+	Poll *Poll `json:"poll,omitempty"`
 
 	// For a game, information about it.
-	Game *Game `json:"game"`
+	Game *Game `json:"game,omitempty"`
 
 	// For a dice, information about it.
-	Dice *Dice `json:"dice"`
+	Dice *Dice `json:"dice,omitempty"`
 
 	// For a service message, represents a user,
 	// that just got added to chat, this message came from.
@@ -142,7 +142,7 @@ type Message struct {
 	// Sender leads to User, capable of invite.
 	//
 	// UserJoined might be the Bot itself.
-	UserJoined *User `json:"new_chat_member"`
+	UserJoined *User `json:"new_chat_member,omitempty"`
 
 	// For a service message, represents a user,
 	// that just left chat, this message came from.
@@ -151,30 +151,30 @@ type Message struct {
 	// capable of this kick.
 	//
 	// UserLeft might be the Bot itself.
-	UserLeft *User `json:"left_chat_member"`
+	UserLeft *User `json:"left_chat_member,omitempty"`
 
 	// For a service message, represents a new title
 	// for chat this message came from.
 	//
 	// Sender would lead to a User, capable of change.
-	NewGroupTitle string `json:"new_chat_title"`
+	NewGroupTitle string `json:"new_chat_title,omitempty"`
 
 	// For a service message, represents all available
 	// thumbnails of the new chat photo.
 	//
 	// Sender would lead to a User, capable of change.
-	NewGroupPhoto *Photo `json:"new_chat_photo"`
+	NewGroupPhoto *Photo `json:"new_chat_photo,omitempty"`
 
 	// For a service message, new members that were added to
 	// the group or supergroup and information about them
 	// (the bot itself may be one of these members).
-	UsersJoined []User `json:"new_chat_members"`
+	UsersJoined []User `json:"new_chat_members,omitempty"`
 
 	// For a service message, true if chat photo just
 	// got removed.
 	//
 	// Sender would lead to a User, capable of change.
-	GroupPhotoDeleted bool `json:"delete_chat_photo"`
+	GroupPhotoDeleted bool `json:"delete_chat_photo,omitempty"`
 
 	// For a service message, true if group has been created.
 	//
@@ -182,7 +182,7 @@ type Message struct {
 	// initial group chat members.
 	//
 	// Sender would lead to creator of the chat.
-	GroupCreated bool `json:"group_chat_created"`
+	GroupCreated bool `json:"group_chat_created,omitempty"`
 
 	// For a service message, true if supergroup has been created.
 	//
@@ -190,7 +190,7 @@ type Message struct {
 	// initial group chat members.
 	//
 	// Sender would lead to creator of the chat.
-	SuperGroupCreated bool `json:"supergroup_chat_created"`
+	SuperGroupCreated bool `json:"supergroup_chat_created,omitempty"`
 
 	// For a service message, true if channel has been created.
 	//
@@ -198,7 +198,7 @@ type Message struct {
 	// initial channel administrators.
 	//
 	// Sender would lead to creator of the chat.
-	ChannelCreated bool `json:"channel_chat_created"`
+	ChannelCreated bool `json:"channel_chat_created,omitempty"`
 
 	// For a service message, the destination (supergroup) you
 	// migrated to.
@@ -207,7 +207,7 @@ type Message struct {
 	// to a supergroup.
 	//
 	// Sender would lead to creator of the migration.
-	MigrateTo int64 `json:"migrate_to_chat_id"`
+	MigrateTo int64 `json:"migrate_to_chat_id,omitempty"`
 
 	// For a service message, the Origin (normal group) you migrated
 	// from.
@@ -216,18 +216,18 @@ type Message struct {
 	// to a supergroup.
 	//
 	// Sender would lead to creator of the migration.
-	MigrateFrom int64 `json:"migrate_from_chat_id"`
+	MigrateFrom int64 `json:"migrate_from_chat_id,omitempty"`
 
 	// Specified message was pinned. Note that the Message object
 	// in this field will not contain further ReplyTo fields even
 	// if it is itself a reply.
-	PinnedMessage *Message `json:"pinned_message"`
+	PinnedMessage *Message `json:"pinned_message,omitempty"`
 
 	// Message is an invoice for a payment.
-	Invoice *Invoice `json:"invoice"`
+	Invoice *Invoice `json:"invoice,omitempty"`
 
 	// Message is a service message about a successful payment.
-	Payment *Payment `json:"successful_payment"`
+	Payment *Payment `json:"successful_payment,omitempty"`
 
 	// For a service message, a user was shared with the bot.
 	UserShared *RecipientShared `json:"user_shared,omitempty"`
