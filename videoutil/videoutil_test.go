@@ -36,7 +36,7 @@ func prelude() error {
 	return nil
 }
 
-func TestVideoUtil(t *testing.T) {
+func TestUtilities(t *testing.T) {
 	require.NoError(t, prelude())
 
 	testPhoto := "testdata/pic.jpg"
@@ -64,7 +64,7 @@ func TestVideoUtil(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = bot.Send(chat, telebot.Photo{File: telebot.FromDisk(testPhoto)}.
-		With(photoutil.Converted(photoutil.Opt{Width: 600, Height: 600})))
+		With(photoutil.Converted(&photoutil.Opt{Width: 600, Height: 600})))
 	require.NoError(t, err)
 
 	_, err = bot.Send(chat, telebot.Video{File: telebot.FromDisk(testVideo), NoStreaming: true}.

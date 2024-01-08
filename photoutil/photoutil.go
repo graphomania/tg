@@ -19,7 +19,7 @@ type Opt struct {
 	Quality int
 }
 
-func Converted(opts ...Opt) telebot.PhotoModifier {
+func Converted(opts ...*Opt) telebot.PhotoModifier {
 	opt := parseOpts(opts...)
 	resizeArg := fmt.Sprintf("%dx%d>", opt.Width, opt.Height)
 	return func(photo *telebot.Photo) (temporaries []string, err error) {
@@ -41,13 +41,13 @@ func Converted(opts ...Opt) telebot.PhotoModifier {
 	}
 }
 
-func RemoveAfter(opts ...Opt) telebot.PhotoModifier {
+func RemoveAfter(opts ...*Opt) telebot.PhotoModifier {
 	return func(photo *telebot.Photo) (temporaries []string, err error) {
 		return []string{photo.FileLocal}, nil
 	}
 }
 
-func parseOpts(opts ...Opt) Opt {
+func parseOpts(opts ...*Opt) Opt {
 	opt := Opt{
 		Convert: convert,
 		TmpPath: "",
@@ -57,6 +57,17 @@ func parseOpts(opts ...Opt) Opt {
 		return opt
 	}
 	opts_ := opts[0]
+
+	if opts_.Width == 0 {
+		opt.Width = 5000
+	} else {
+		opt.Width = opts_.Width
+	}
+	if opts_.Height == 0 {
+		opt.Height = 5000
+	} else {
+		opt.Height = opts_.Height
+	}
 	if opts_.Convert != "" {
 		opt.Convert = opts_.Convert
 	}
