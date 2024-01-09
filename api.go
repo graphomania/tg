@@ -231,16 +231,9 @@ func (b *Bot) sendMedia(media Media, params map[string]string, files map[string]
 		sendFiles[k] = v
 	}
 
-	var ret []byte
-	for i := 0; i <= b.retries; i++ {
-		var err error
-		ret, err = b.sendFiles(what, sendFiles, params)
-		if err != nil {
-			if err != nil && strings.Contains(err.Error(), "connection reset by peer") {
-				continue
-			}
-			return nil, err
-		}
+	ret, err := b.sendFiles(what, sendFiles, params)
+	if err != nil {
+		return nil, err
 	}
 	return extractMessage(ret)
 }
